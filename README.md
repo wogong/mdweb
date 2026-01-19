@@ -52,6 +52,17 @@ docker build -t mdweb .
 docker run -p 3000:3000 -v /path/to/markdown:/data mdweb
 ```
 
+### Cache Refresh
+
+The search index cache is automatically rebuilt every 24 hours while the server runs. This keeps your data fresh without restarting the container.
+
+To customize the rebuild interval, modify `server.js`:
+```javascript
+const db = initializeIndex(dataPath, 24); // 24 hours
+```
+
+Change `24` to any number of hours you prefer (e.g., `12` for twice daily, `0` to disable).
+
 ### First Run
 
 The first startup builds a full index of your markdown files. Subsequent startups load from cache instantly.

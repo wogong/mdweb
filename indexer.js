@@ -161,8 +161,10 @@ class FileIndex {
 }
 
 let index = null;
+let lastRebuildTime = 0;
+let rebuildSchedule = null;
 
-export function initializeIndex(dataDir) {
+export function initializeIndex(dataDir, autoRebuildHours = 24) {
   if (index) return index;
 
   index = new FileIndex();
@@ -199,7 +201,13 @@ export function initializeIndex(dataDir) {
         console.log('Loading index from cache...');
         const cached = fs.readFileSync(cacheFile, 'utf-8');
         index.deserialize(cached);
+        lastRebuildTime = Date.now();
         console.log(`Loaded ${index.filesList.length} files from cache`);
+        
+        // Schedule daily rebuild
+        if (autoRebuildHours > 0) {
+          scheduleRebuild(dataDir, autoRebuildHours);
+        }
         return index;
       }
     } catch (e) {
@@ -261,9 +269,15 @@ export function initializeIndex(dataDir) {
   try {
     fs.writeFileSync(cacheFile, index.serialize());
     fs.writeFileSync(mTimeFile, JSON.stringify(mTimes));
+    lastRebuildTime = Date.now();
     console.log(`Indexed ${index.filesList.length} files`);
   } catch (e) {
     console.error('Error saving cache:', e.message);
+  }
+
+  // Schedule daily rebuild
+  if (autoRebuildHours > 0) {
+    scheduleRebuild(dataDir, autoRebuildHours);
   }
 
   return index;
@@ -291,4 +305,83 @@ export function searchFiles(db, query, page = 1) {
     return { results: [], page: 1, totalPages: 0, total: 0 };
   }
   return db.search(query.trim(), page);
+}
+
+function scheduleRebuild(dataDir, intervalHours) {
+  // Cancel existing schedule
+  if (rebuildSchedule) {
+    clearInterval(rebuildSchedule);
+  }
+
+  const intervalMs = intervalHours * 60 * 60 * 1000;
+  const nextRebuildTime = new Date(lastRebuildTime + intervalMs);
+  
+  console.log(`Cache rebuild scheduled every ${intervalHours} hours (next: ${nextRebuildTime.toLocaleString()})`);
+
+  rebuildSchedule = setInterval(() => {
+    rebuildIndexCache(dataDir);
+  }, intervalMs);
+}
+
+function rebuildIndexCache(dataDir) {
+  if (!index) return;
+
+  console.log(`\n[${new Date().toLocaleString()}] Starting scheduled cache rebuild...`);
+  const start = Date.now();
+
+  try {
+    const cacheFile = path.join(__dirname, '.mdindex.cache');
+    const mTimeFile = path.join(__dirname, '.mdindex.mtime');
+
+    // Collect current files
+    const currentFiles = new Map();
+    collectFiles(dataDir, currentFiles);
+
+    // Check for changes
+    let hasChanges = false;
+    const oldMTimes = fs.existsSync(mTimeFile) 
+      ? JSON.parse(fs.readFileSync(mTimeFile, 'utf-8')) 
+      : {};
+
+    // Check for new/modified files
+    for (const [filepath, mtime] of currentFiles) {
+      if (oldMTimes[filepath] !== mtime) {
+        hasChanges = true;
+        if (index.files.has(filepath)) {
+          index.removeFile(filepath);
+        }
+        const content = fs.readFileSync(filepath, 'utf-8');
+        index.addFile(filepath, path.basename(filepath), content, mtime);
+      }
+    }
+
+    // Check for deleted files
+    for (const filepath of Object.keys(oldMTimes)) {
+      if (!currentFiles.has(filepath)) {
+        hasChanges = true;
+        index.removeFile(filepath);
+      }
+    }
+
+    if (hasChanges) {
+      // Save updated cache
+      const mTimes = {};
+      for (const [filepath, mtime] of currentFiles) {
+        mTimes[filepath] = mtime;
+      }
+      
+      fs.writeFileSync(cacheFile, index.serialize());
+      fs.writeFileSync(mTimeFile, JSON.stringify(mTimes));
+      
+      const elapsed = Date.now() - start;
+      console.log(`Cache rebuilt successfully (${index.filesList.length} files, ${elapsed}ms)`);
+    } else {
+      const elapsed = Date.now() - start;
+      console.log(`No changes detected (${elapsed}ms)`);
+    }
+
+    lastRebuildTime = Date.now();
+  } catch (e) {
+    console.error('Error during cache rebuild:', e.message);
+  }
 }

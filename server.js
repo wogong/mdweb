@@ -28,7 +28,7 @@ for (let i = 0; i < args.length; i++) {
 
 // Initialize database index
 const dataPath = path.isAbsolute(DATA_DIR) ? DATA_DIR : path.join(__dirname, DATA_DIR);
-const db = initializeIndex(dataPath);
+const db = initializeIndex(dataPath, 24); // Rebuild cache every 24 hours
 
 app.use(express.static('public'));
 app.use(express.json());
