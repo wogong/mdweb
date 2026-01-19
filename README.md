@@ -191,7 +191,7 @@ npx nodemon server.js --watch data
 ### See Also
 
 - [Full Specifications](./specs.md)
-- [MDWeb GitHub](https://github.com/yourusername/mdweb)
+- [MDWeb GitHub](https://github.com/wogong/mdweb)
 
 ## License
 
