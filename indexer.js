@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import crypto from 'crypto';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -207,7 +208,7 @@ export function initializeIndex(dataDir, autoRebuildHours = 24) {
   index = new FileIndex();
   
   // Generate unique cache filenames based on data directory
-  const dataDirHash = require('crypto')
+  const dataDirHash = crypto
     .createHash('md5')
     .update(path.resolve(dataDir))
     .digest('hex')
@@ -376,7 +377,7 @@ function rebuildIndexCache(dataDir) {
 
   try {
     // Generate unique cache filenames based on data directory
-    const dataDirHash = require('crypto')
+    const dataDirHash = crypto
       .createHash('md5')
       .update(path.resolve(dataDir))
       .digest('hex')
