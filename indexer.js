@@ -80,27 +80,24 @@ class FileIndex {
   }
 
   search(query, page = 1, perPage = 15) {
-    const lowerQuery = query.toLowerCase();
-    
-    // Check if query is pure CJK (multiple characters)
+    // Detect if query contains multiple CJK characters
     const cjkRegex = /[\u4E00-\u9FFF\u3040-\u309F\uAC00-\uD7AF]/g;
-    const cjkMatches = query.match(cjkRegex) || [];
-    const isPureCJK = cjkMatches.length > 1 && cjkMatches.length === query.length;
+    const cjkChars = query.match(cjkRegex) || [];
+    const isMultiCJK = cjkChars.length > 1;
     
     let matchedFiles = [];
     
-    if (isPureCJK) {
-      // For multi-character CJK queries, use phrase matching (substring)
-      matchedFiles = this.filesList.map((fileInfo, idx) => ({
-        index: idx,
-        path: fileInfo.path,
-        name: fileInfo.name,
-        content: this.files.get(fileInfo.path).content,
-        matches: 0
-      })).filter(file => {
-        // Count phrase occurrences
+    if (isMultiCJK) {
+      // For multi-CJK queries, use strict phrase matching
+      // Only match lines that contain the exact phrase
+      matchedFiles = [];
+      
+      for (let idx = 0; idx < this.filesList.length; idx++) {
+        const fileInfo = this.filesList[idx];
+        const content = this.files.get(fileInfo.path).content;
+        
         let count = 0;
-        const lines = file.content.split('\n');
+        const lines = content.split('\n');
         for (const line of lines) {
           let searchPos = 0;
           while ((searchPos = line.indexOf(query, searchPos)) !== -1) {
@@ -108,9 +105,17 @@ class FileIndex {
             searchPos += query.length;
           }
         }
-        file.matches = count;
-        return count > 0;
-      });
+        
+        if (count > 0) {
+          matchedFiles.push({
+            index: idx,
+            path: fileInfo.path,
+            name: fileInfo.name,
+            content: content,
+            matches: count
+          });
+        }
+      }
     } else {
       // For single character or ASCII queries, use token matching
       const queryTokens = this.tokenize(query);
@@ -134,7 +139,7 @@ class FileIndex {
       for (const file of matchedFiles) {
         const lines = file.content.split('\n');
         for (const line of lines) {
-          if (line.toLowerCase().includes(lowerQuery)) {
+          if (line.includes(query)) {
             file.matches++;
           }
         }
@@ -143,7 +148,7 @@ class FileIndex {
 
     matchedFiles.sort((a, b) => b.matches - a.matches);
 
-    // Extract hits
+    // Extract hits - only show lines containing the exact query
     const results = matchedFiles.map(file => {
       const lines = file.content.split('\n');
       const hits = [];
