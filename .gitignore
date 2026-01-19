@@ -4,7 +4,8 @@ node_modules/
 dist/
 build/
 .env
-.mdindex.cache
-.mdindex.mtime
-.mdindex.stats
+.mdindex.cache*
+.mdindex.mtime*
+.mdindex.stats*
+
 

@@ -81,30 +81,62 @@ class FileIndex {
 
   search(query, page = 1, perPage = 15) {
     const lowerQuery = query.toLowerCase();
-    const queryTokens = this.tokenize(query);
     
-    // Find files matching any token
-    const matchingFileIndices = new Set();
-    for (const token of queryTokens) {
-      const indices = this.wordIndex.get(token) || new Set();
-      indices.forEach(idx => matchingFileIndices.add(idx));
-    }
+    // Check if query is pure CJK (multiple characters)
+    const cjkRegex = /[\u4E00-\u9FFF\u3040-\u309F\uAC00-\uD7AF]/g;
+    const cjkMatches = query.match(cjkRegex) || [];
+    const isPureCJK = cjkMatches.length > 1 && cjkMatches.length === query.length;
+    
+    let matchedFiles = [];
+    
+    if (isPureCJK) {
+      // For multi-character CJK queries, use phrase matching (substring)
+      matchedFiles = this.filesList.map((fileInfo, idx) => ({
+        index: idx,
+        path: fileInfo.path,
+        name: fileInfo.name,
+        content: this.files.get(fileInfo.path).content,
+        matches: 0
+      })).filter(file => {
+        // Count phrase occurrences
+        let count = 0;
+        const lines = file.content.split('\n');
+        for (const line of lines) {
+          let searchPos = 0;
+          while ((searchPos = line.indexOf(query, searchPos)) !== -1) {
+            count++;
+            searchPos += query.length;
+          }
+        }
+        file.matches = count;
+        return count > 0;
+      });
+    } else {
+      // For single character or ASCII queries, use token matching
+      const queryTokens = this.tokenize(query);
+      const matchingFileIndices = new Set();
+      
+      for (const token of queryTokens) {
+        const indices = this.wordIndex.get(token) || new Set();
+        indices.forEach(idx => matchingFileIndices.add(idx));
+      }
 
-    // Convert to array and sort by relevance
-    const matchedFiles = Array.from(matchingFileIndices).map(idx => ({
-      index: idx,
-      path: this.filesList[idx].path,
-      name: this.filesList[idx].name,
-      content: this.files.get(this.filesList[idx].path).content,
-      matches: 0
-    }));
+      // Convert to array and sort by relevance
+      matchedFiles = Array.from(matchingFileIndices).map(idx => ({
+        index: idx,
+        path: this.filesList[idx].path,
+        name: this.filesList[idx].name,
+        content: this.files.get(this.filesList[idx].path).content,
+        matches: 0
+      }));
 
-    // Count matches per file
-    for (const file of matchedFiles) {
-      const lines = file.content.split('\n');
-      for (const line of lines) {
-        if (line.toLowerCase().includes(lowerQuery)) {
-          file.matches++;
+      // Count matches per file
+      for (const file of matchedFiles) {
+        const lines = file.content.split('\n');
+        for (const line of lines) {
+          if (line.toLowerCase().includes(lowerQuery)) {
+            file.matches++;
+          }
         }
       }
     }
@@ -116,7 +148,7 @@ class FileIndex {
       const lines = file.content.split('\n');
       const hits = [];
       lines.forEach((line, idx) => {
-        if (line.toLowerCase().includes(lowerQuery)) {
+        if (line.includes(query)) {
           hits.push({
             lineNum: idx + 1,
             content: line.trim()
@@ -168,8 +200,16 @@ export function initializeIndex(dataDir, autoRebuildHours = 24) {
   if (index) return index;
 
   index = new FileIndex();
-  const cacheFile = path.join(__dirname, '.mdindex.cache');
-  const mTimeFile = path.join(__dirname, '.mdindex.mtime');
+  
+  // Generate unique cache filenames based on data directory
+  const dataDirHash = require('crypto')
+    .createHash('md5')
+    .update(path.resolve(dataDir))
+    .digest('hex')
+    .slice(0, 8);
+  
+  const cacheFile = path.join(__dirname, `.mdindex.cache.${dataDirHash}`);
+  const mTimeFile = path.join(__dirname, `.mdindex.mtime.${dataDirHash}`);
 
   // Try to load from cache
   let currentFiles = new Map();
@@ -330,8 +370,15 @@ function rebuildIndexCache(dataDir) {
   const start = Date.now();
 
   try {
-    const cacheFile = path.join(__dirname, '.mdindex.cache');
-    const mTimeFile = path.join(__dirname, '.mdindex.mtime');
+    // Generate unique cache filenames based on data directory
+    const dataDirHash = require('crypto')
+      .createHash('md5')
+      .update(path.resolve(dataDir))
+      .digest('hex')
+      .slice(0, 8);
+    
+    const cacheFile = path.join(__dirname, `.mdindex.cache.${dataDirHash}`);
+    const mTimeFile = path.join(__dirname, `.mdindex.mtime.${dataDirHash}`);
 
     // Collect current files
     const currentFiles = new Map();

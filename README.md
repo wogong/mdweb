@@ -188,8 +188,10 @@ MDWeb is designed for iOS Safari and other mobile browsers:
 
 MDWeb uses persistent caching to speed up subsequent startups:
 
-- **`.mdindex.cache`** - Serialized search index
-- **`.mdindex.mtime`** - File modification timestamps
+- **`.mdindex.cache.*`** - Serialized search index (per data directory)
+- **`.mdindex.mtime.*`** - File modification timestamps (per data directory)
+
+Each `--data` directory gets its own cache files (identified by MD5 hash). This allows running multiple instances with different data sources.
 
 On startup:
 1. Compares current files with cached mtimes
