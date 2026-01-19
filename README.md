@@ -118,7 +118,9 @@ Chinese, Japanese, and Korean characters are indexed individually for optimal se
 
 ### Environment Variables
 ```bash
-PORT=3000          # Server port
+PORT=3000                                    # Server port
+UPTIME_PUSH_URL=https://...                  # Health check push URL (optional)
+PUSH_INTERVAL=86400                          # Seconds between health checks (default: 24h)
 ```
 
 ### Command Line Options

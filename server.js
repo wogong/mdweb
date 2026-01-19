@@ -135,3 +135,29 @@ app.listen(PORT, SERVER, () => {
   const url = SERVER === 'localhost' ? `http://localhost:${PORT}` : `http://${SERVER}:${PORT}`;
   console.log(`Server running at ${url}`);
 });
+
+// Health check push
+const UPTIME_PUSH_URL = process.env.UPTIME_PUSH_URL;
+const PUSH_INTERVAL = parseInt(process.env.PUSH_INTERVAL || '86400', 10); // Default 24 hours
+
+if (UPTIME_PUSH_URL) {
+  const pushHealth = async () => {
+    try {
+      const response = await fetch(UPTIME_PUSH_URL);
+      if (response.ok) {
+        console.log(`[${new Date().toLocaleString()}] Health check pushed`);
+      } else {
+        console.error(`Health check failed: ${response.status}`);
+      }
+    } catch (error) {
+      console.error('Health check push error:', error.message);
+    }
+  };
+
+  // Push immediately on startup
+  pushHealth();
+
+  // Then push at regular intervals
+  setInterval(pushHealth, PUSH_INTERVAL * 1000);
+  console.log(`Health check scheduled every ${PUSH_INTERVAL} seconds`);
+}

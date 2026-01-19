@@ -12,4 +12,13 @@ services:
       PORT: 3000
       SERVER: 0.0.0.0
       DATA_DIR: /data
+      # Optional: Health check push
+      # UPTIME_PUSH_URL: https://up.wogong.net/api/push/YOUR_TOKEN
+      # PUSH_INTERVAL: 86400
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
