@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  mdweb:
+    image: ghcr.io/wogong/mdweb:latest
+    container_name: mdweb
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/data
+    environment:
+      PORT: 3000
+      SERVER: 0.0.0.0
+      DATA_DIR: /data
+    restart: unless-stopped

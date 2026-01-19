@@ -29,6 +29,29 @@ node server.js --port 8080 --server 0.0.0.0 --data /path/to/documents
 
 Then open `http://localhost:3000` in your browser.
 
+### Docker
+
+#### Using docker-compose (recommended)
+
+```bash
+docker-compose up
+```
+
+Opens at `http://localhost:3000`. Add your markdown files to `./data/`.
+
+#### Using Docker directly
+
+```bash
+docker run -p 3000:3000 -v /path/to/markdown:/data ghcr.io/wogong/mdweb:latest
+```
+
+#### Build locally
+
+```bash
+docker build -t mdweb .
+docker run -p 3000:3000 -v /path/to/markdown:/data mdweb
+```
+
 ### First Run
 
 The first startup builds a full index of your markdown files. Subsequent startups load from cache instantly.
