@@ -1,0 +1,14 @@
+{
+  "name": "mdweb",
+  "version": "1.0.0",
+  "description": "Web search and viewer for markdown files",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "sql.js": "^1.10.2"
+  }
+}

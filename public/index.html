@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Markdown Search</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      background: #fff;
+      padding: 16px;
+      border-bottom: 1px solid #e0e0e0;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .search-box {
+      display: flex;
+      gap: 8px;
+    }
+
+    #searchInput {
+      flex: 1;
+      padding: 10px 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 16px;
+      background: #fff;
+    }
+
+    #searchBtn {
+      padding: 10px 20px;
+      background: #007AFF;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    #searchBtn:active {
+      background: #0051d5;
+    }
+
+    .container {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .results-panel {
+      width: 100%;
+      overflow-y: auto;
+      background: #fff;
+    }
+
+    .results-panel.hidden {
+      display: none;
+    }
+
+    .viewer-panel {
+      width: 100%;
+      overflow-y: auto;
+      background: #fff;
+      display: none;
+    }
+
+    .viewer-panel.active {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .viewer-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid #e0e0e0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #f9f9f9;
+    }
+
+    .back-btn {
+      padding: 8px 12px;
+      background: none;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      color: #007AFF;
+      font-weight: 600;
+    }
+
+    .back-btn:active {
+      background: #f0f0f0;
+    }
+
+    .file-title {
+      font-size: 16px;
+      font-weight: 600;
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .viewer-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      background: #fff;
+    }
+
+    .markdown-content {
+      line-height: 1.6;
+      max-width: 100%;
+      word-wrap: break-word;
+    }
+
+    .markdown-content h1,
+    .markdown-content h2,
+    .markdown-content h3 {
+      margin-top: 20px;
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+
+    .markdown-content h1 {
+      font-size: 28px;
+      border-bottom: 2px solid #e0e0e0;
+      padding-bottom: 10px;
+    }
+
+    .markdown-content h2 {
+      font-size: 22px;
+    }
+
+    .markdown-content h3 {
+      font-size: 18px;
+    }
+
+    .markdown-content p {
+      margin-bottom: 12px;
+    }
+
+    .markdown-content code {
+      background: #f4f4f4;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'Monaco', 'Courier New', monospace;
+      font-size: 14px;
+    }
+
+    .markdown-content pre {
+      background: #f4f4f4;
+      padding: 12px;
+      border-radius: 6px;
+      overflow-x: auto;
+      margin: 12px 0;
+    }
+
+    .markdown-content pre code {
+      background: none;
+      padding: 0;
+    }
+
+    .markdown-content ul,
+    .markdown-content ol {
+      margin-left: 20px;
+      margin-bottom: 12px;
+    }
+
+    .markdown-content li {
+      margin-bottom: 6px;
+    }
+
+    .result-item {
+      padding: 14px 16px;
+      border-bottom: 1px solid #e0e0e0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .result-item:active {
+      background: #f0f0f0;
+    }
+
+    .result-icon {
+      color: #999;
+      font-size: 18px;
+    }
+
+    .result-text {
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .result-name {
+      font-weight: 600;
+      font-size: 14px;
+      color: #007AFF;
+    }
+
+    .result-path {
+      font-size: 12px;
+      color: #999;
+      margin-top: 2px;
+    }
+
+    .result-hits {
+      font-size: 12px;
+      color: #666;
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px solid #f0f0f0;
+    }
+
+    .hit-line {
+      display: block;
+      margin: 4px 0;
+      padding: 4px 0;
+      line-height: 1.3;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .hit-keyword {
+      background-color: #fff34d;
+      padding: 0 2px;
+      border-radius: 2px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .loading {
+      padding: 20px;
+      text-align: center;
+      color: #999;
+    }
+
+    .empty {
+      padding: 40px 20px;
+      text-align: center;
+      color: #999;
+      font-size: 14px;
+    }
+
+    .pagination {
+      padding: 12px 16px;
+      border-top: 1px solid #e0e0e0;
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      align-items: center;
+      background: #f9f9f9;
+    }
+
+    .pagination button {
+      padding: 6px 12px;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      color: #007AFF;
+      font-weight: 600;
+    }
+
+    .pagination button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .pagination button:not(:disabled):active {
+      background: #f0f0f0;
+    }
+
+    .pagination-info {
+      font-size: 12px;
+      color: #666;
+    }
+
+    @media (min-width: 768px) {
+      .container {
+        display: flex;
+      }
+
+      .results-panel {
+        width: 40%;
+        max-width: 400px;
+      }
+
+      .results-panel.hidden {
+        display: block;
+      }
+
+      .viewer-panel {
+        width: 60%;
+        display: flex;
+      }
+
+      .viewer-panel.active {
+        display: flex;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="search-box">
+      <input 
+        type="text" 
+        id="searchInput" 
+        placeholder="Search text or filename (end with .md)" 
+        autocomplete="off"
+      >
+      <button id="searchBtn">Go</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="results-panel" id="resultsPanel">
+      <div id="resultsList"></div>
+    </div>
+
+    <div class="viewer-panel" id="viewerPanel">
+      <div class="viewer-header">
+        <button class="back-btn" id="backBtn">← Back</button>
+        <div class="file-title" id="fileTitle"></div>
+      </div>
+      <div class="viewer-content">
+        <div class="markdown-content" id="fileContent"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const searchInput = document.getElementById('searchInput');
+    const searchBtn = document.getElementById('searchBtn');
+    const resultsList = document.getElementById('resultsList');
+    const resultsPanel = document.getElementById('resultsPanel');
+    const viewerPanel = document.getElementById('viewerPanel');
+    const fileTitle = document.getElementById('fileTitle');
+    const fileContent = document.getElementById('fileContent');
+    const backBtn = document.getElementById('backBtn');
+    
+    let currentQuery = '';
+    let currentPage = 1;
+
+    // Search functionality
+    async function search() {
+      const query = searchInput.value.trim();
+      if (!query) return;
+
+      // Check if query ends with .md - if so, find file by name
+      if (query.toLowerCase().endsWith('.md')) {
+        resultsList.innerHTML = '<div class="loading">Finding file...</div>';
+        try {
+          const response = await fetch(`/api/file-by-name?name=${encodeURIComponent(query)}`);
+          const data = await response.json();
+          
+          if (response.ok) {
+            fileTitle.textContent = data.name;
+            fileContent.innerHTML = '<div class="loading">Loading...</div>';
+            
+            const html = markdownToHtml(data.content);
+            fileContent.innerHTML = html;
+            
+            resultsPanel.classList.add('hidden');
+            viewerPanel.classList.add('active');
+            resultsList.innerHTML = '';
+          } else {
+            resultsList.innerHTML = '<div class="empty">File not found</div>';
+          }
+        } catch (error) {
+          resultsList.innerHTML = '<div class="empty">Error finding file</div>';
+        }
+      } else {
+        // Text search
+        currentQuery = query;
+        currentPage = 1;
+        performSearch(1);
+      }
+    }
+
+    async function performSearch(page) {
+      resultsList.innerHTML = '<div class="loading">Searching...</div>';
+      
+      try {
+        const response = await fetch('/api/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: currentQuery, page })
+        });
+        
+        const data = await response.json();
+        displayResults(data.results, data.page, data.totalPages, data.total);
+      } catch (error) {
+        resultsList.innerHTML = '<div class="empty">Search error</div>';
+      }
+    }
+
+    function displayResults(results, page, totalPages, total) {
+      if (results.length === 0) {
+        resultsList.innerHTML = '<div class="empty">No results found</div>';
+        return;
+      }
+
+      const query = searchInput.value.trim();
+      let html = results.map((result, idx) => {
+        const hitsHtml = result.hits && result.hits.length > 0
+          ? `<div class="result-hits">${result.hits.map(hit => {
+              const highlighted = highlightKeyword(hit.content, query);
+              return `<span class="hit-line">Line ${hit.lineNum}: ${highlighted}</span>`;
+            }).join('')}</div>`
+          : '';
+        
+        return `
+          <div class="result-item" onclick="openFile('${result.path}')">
+            <div class="result-icon">📄</div>
+            <div class="result-text">
+              <div class="result-name">${result.name}</div>
+              <div class="result-path">${result.path}</div>
+              ${hitsHtml}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Add pagination if needed
+      if (totalPages > 1) {
+        html += `
+          <div class="pagination">
+            <button onclick="performSearch(${page - 1})" ${page <= 1 ? 'disabled' : ''}>← Prev</button>
+            <span class="pagination-info">Page ${page} of ${totalPages} (${total} total)</span>
+            <button onclick="performSearch(${page + 1})" ${page >= totalPages ? 'disabled' : ''}>Next →</button>
+          </div>
+        `;
+      }
+
+      resultsList.innerHTML = html;
+      currentPage = page;
+    }
+
+    function highlightKeyword(text, keyword) {
+      if (!keyword) return escapeHtml(text);
+      const regex = new RegExp(`(${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+      return escapeHtml(text).replace(regex, '<span class="hit-keyword">$1</span>');
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // File viewer
+    async function openFile(filePath) {
+      try {
+        const response = await fetch(`/api/file?path=${encodeURIComponent(filePath)}`);
+        const data = await response.json();
+        
+        if (response.ok) {
+          fileTitle.textContent = data.name;
+          fileContent.innerHTML = '<div class="loading">Loading...</div>';
+          
+          // Basic markdown rendering
+          const html = markdownToHtml(data.content);
+          fileContent.innerHTML = html;
+          
+          // Show viewer, hide results on mobile
+          resultsPanel.classList.add('hidden');
+          viewerPanel.classList.add('active');
+        }
+      } catch (error) {
+        fileContent.innerHTML = '<div class="empty">Failed to load file</div>';
+      }
+    }
+
+    function markdownToHtml(markdown) {
+      const div = document.createElement('div');
+      div.textContent = markdown;
+      return '<pre style="white-space: pre-wrap; word-wrap: break-word; font-size: 13px; line-height: 1.5;">' + div.innerHTML + '</pre>';
+    }
+
+    // Back button
+    backBtn.addEventListener('click', () => {
+      resultsPanel.classList.remove('hidden');
+      viewerPanel.classList.remove('active');
+    });
+
+    // Search on enter
+    searchInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') search();
+    });
+
+    // Search button
+    searchBtn.addEventListener('click', search);
+
+    // Focus search input on load
+    searchInput.focus();
+  </script>
+</body>
+</html>
